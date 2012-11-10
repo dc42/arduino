@@ -4,8 +4,8 @@ arduino
 This repository contains reusable modules, drivers and patches for the Arduino platform. Here is a description of the
 projects:
 
-Task
-====
+Scheduler
+=========
 This is a cooperative multi-tasking scheduler for the Arduino. Conventionally, if you need to control and/or monitor
 several devices concurrently, then you need to do in the Arduino loop() function. The code for all the devices is mixed
 up, making it difficult to understand and hard to maintain. In contrast, if you use the task scheduler, you can write
