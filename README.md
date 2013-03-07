@@ -7,7 +7,7 @@ projects:
 Scheduler
 =========
 This is a cooperative multi-tasking scheduler for the Arduino. Conventionally, if you need to control and/or monitor
-several devices concurrently, then you need to do in the Arduino loop() function. The code for all the devices is mixed
+several devices concurrently, then you need to do this in the Arduino loop() function. The code for all the devices is mixed
 up, making it difficult to understand and hard to maintain. In contrast, if you use the task scheduler, you can write
 the code for each device separately, then just create a task for each device to run its code.
 
