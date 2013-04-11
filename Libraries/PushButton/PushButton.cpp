@@ -1,6 +1,8 @@
 #include "PushButton.h"
 #include "arduino.h"
 
+const int debounceCount = 3;
+
 void PushButton::init()
 {
   pinMode(pin, INPUT_PULLUP);
