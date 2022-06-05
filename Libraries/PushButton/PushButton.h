@@ -9,7 +9,7 @@ class PushButton
   int pin;
   
 public:
-  PushButton(int p) : pin(p), state(false), count(0) {}
+  PushButton(int p) : state(false), count(0), pin(p) {}
   void init();
   void poll();
 

@@ -1,7 +1,7 @@
 #include "PushButton.h"
 #include "arduino.h"
 
-const int debounceCount = 3;
+static const int debounceCount = 10;
 
 void PushButton::init()
 {
