@@ -9,10 +9,11 @@ class PushButton
   int pin;
   
 public:
-  PushButton(int p) : state(false), count(0), pin(p) {}
+  PushButton(int p) : pin(p) {}
   void init();
   void poll();
 
+  // Return the debounced state
   bool getState() 
   { 
     return state; 

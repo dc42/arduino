@@ -35,6 +35,7 @@ extern const PROGMEM LcdFont font10x10;
 // Digital pin 0 not used, however if we are using the serial port for debugging then it's serial input
 const int debugTxPin = 1;         // transmit pin reserved for debugging
 
+const int PowerPin = 2;           // setting this pin high maintains VIN power from the battery
 const int BuzzerPin = 3;          // earpiece, aka OCR2B for tone generation
 const int T0InputPin = 4;
 const int coilDrivePin = 5;
@@ -50,7 +51,10 @@ const int LcdSclkPin = 13;
 
 // Analog pin definitions
 const int receiverInputPin = 0;
-// Analog pins 1-5 not used
+const int batteryVoltagePin = 1;
+// Analog pins 2-5 not used
+
+const float BatteryVoltageRange = 3.3 * (100.0 + 47.0) / 47.0;   // the battery voltage that wold give a maximum ADC reading
 
 const int EncoderPulsesPerClick = 4;
 
@@ -70,9 +74,12 @@ const uint16_t numSamplesToAverage = 1024;
 // Variables used by the ISR and outside it
 volatile int16_t averages[4];    // when we've accumulated enough readings in the bins, the ISR copies them to here and starts again
 volatile uint16_t ticks = 0;     // system tick counter for timekeeping
+uint16_t whenButtonPressed;
+uint16_t LongPressTicks = 40000;
 volatile bool sampleReady = false;  // indicates that the averages array has been updated
 bool printCalibration = true;
 bool printSensitivity = true;
+bool buttonDown = false;
 
 // Variables used only outside the ISR
 int16_t calib[4];                // values (set during calibration) that we subtract from the averages
@@ -99,6 +106,9 @@ PushButton *button;
 
 void setup()
 {
+  pinMode(PowerPin, OUTPUT);
+  digitalWrite(PowerPin, HIGH);       // Turn on power so that it will be maintained when the button is released
+  
   digitalWrite(T0OutputPin, LOW);
   pinMode(T0OutputPin, OUTPUT);       // pulse pin from timer 1 used to feed timer 0
   digitalWrite(coilDrivePin, LOW);
@@ -113,12 +123,22 @@ void setup()
   encoder = new RotaryEncoder(EncoderAPin, EncoderBPin, EncoderPulsesPerClick);
   encoder->init();
 
+  // Read the battery voltage
+  analogReference(EXTERNAL);
+  const uint16_t reading = analogRead(batteryVoltagePin);
+  float batteryVoltage = (BatteryVoltageRange/1024.0) * reading;
+  
   lcd->setFont(&font10x10);
+  lcd->setRightMargin(128);
   lcd->setCursor(row0, 0);
   lcd->clear();
   lcd->print("IB Metal Detector v0.0");
+  lcd->setCursor(row1, 0);
+  lcd->print("Battery ");
+  lcd->print(batteryVoltage, 1);
+  lcd->print("V");
   lcd->flush();
-  lcd->setRightMargin(128);
+  delay(2000);
 
   // WARNING! Do not call delay() or millis() after here, because the following code takes over the timer that Arduino uses for its tick counter
 
@@ -235,9 +255,10 @@ ISR(TIMER1_OVF_vect)
 
 void loop()
 {
+  uint16_t localTicks;
   do
   {
-    const uint16_t localTicks = ticks;
+    localTicks = ticks;
     if ((localTicks - lastPollTime) >= PollInterval)
     {
       lastPollTime = localTicks;
@@ -248,15 +269,37 @@ void loop()
   
   if (button->getNewPress())
   {
-    // Calibrate button pressed. We save the current phase detector outputs and subtract them from future results.
-    // This lets us use the detector if the coil is slightly off-balance.
-    // It would be better to average several samples instead of taking just one.
-    for (int i = 0; i < 4; ++i)
+    buttonDown = true;
+    whenButtonPressed = localTicks;
+  }
+  else if (buttonDown)
+  {
+    if (button->getState())
     {
-      calib[i] = averages[i];
+      if (localTicks - whenButtonPressed >= LongPressTicks)
+      {
+        // Button has been held down for long enough to indicate power down
+        digitalWrite(PowerPin, false);
+        lcd->clear();
+        lcd->setCursor(20, 0);
+        lcd->print("Release to power off");
+        lcd->flush();
+        for (;;) {}
+      }
     }
-    sampleReady = false;
-    printCalibration = true;
+    else
+    {
+      // Button pressed and released. We save the current phase detector outputs and subtract them from future results.
+      // This lets us use the detector if the coil is slightly off-balance.
+      // It would be better to average several samples instead of taking just one.
+      for (int i = 0; i < 4; ++i)
+      {
+        calib[i] = averages[i];
+      }
+      sampleReady = false;
+      printCalibration = true;
+      buttonDown = false;
+    }
   }
   else
   {
